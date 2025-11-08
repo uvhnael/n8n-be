@@ -17,4 +17,5 @@ public class User {
     private String username;
     private String password;
     private String roles; // comma separated
+    private java.time.LocalDateTime createdAt;
 }
