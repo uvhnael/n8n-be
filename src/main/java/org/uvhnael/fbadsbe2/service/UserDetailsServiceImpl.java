@@ -27,7 +27,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 .username(user.getUsername())
                 .password(user.getPassword())
                 .authorities(
-                    Arrays.stream(user.getRoles() == null ? "" : user.getRoles().split(","))
+                    Arrays.stream(user.getRoles() == null ? new String[0] : user.getRoles().split(","))
                         .filter(s -> !s.isBlank())
                         .map(String::trim)
                         .map(SimpleGrantedAuthority::new)
