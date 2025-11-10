@@ -31,3 +31,45 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Java / Maven
+target/
+**/target/
+**/classes/
+**/*.class
+
+# Don't commit local application properties or secrets
+src/main/resources/application.properties
+.env
+.env.*
+
+# Logs
+logs/
+*.log
+
+# IDE / Editor backup files
+*.swp
+*~
+
+# Gradle (if any)
+.gradle/
+
+# Node modules (if frontend added later)
+node_modules/
+
+# Package manager lock files (optional to ignore)
+# package-lock.json
+# yarn.lock
+
+# Coverage
+coverage/
+*.lcov
+
+# Misc
+.classpath
+.project
+.settings/

@@ -5,16 +5,19 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 
 @Component
+@Slf4j
 public class JwtUtil {
 
-    @Value("${jwt.secret:change_this_to_a_strong_secret}")
+    @Value("${jwt.secret:}")
     private String secret;
 
     @Value("${jwt.expiration-ms:3600000}")
@@ -24,8 +27,18 @@ public class JwtUtil {
 
     @PostConstruct
     public void init() {
-        // Use the configured secret to create a signing key
-        key = Keys.hmacShaKeyFor(secret.getBytes());
+        // If no secret configured or secret too short for HS256, auto-generate a secure key
+        try {
+            if (secret == null || secret.trim().isEmpty() || secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+                log.warn("JWT secret is not provided or too short. Generating a secure random key for JWTs. For production, set 'jwt.secret' to a 32+ byte secret.");
+                key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+            } else {
+                key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+            }
+        } catch (Exception ex) {
+            log.error("Failed to initialize JWT signing key: {}", ex.getMessage(), ex);
+            throw ex;
+        }
     }
 
     public String generateToken(String username) {
