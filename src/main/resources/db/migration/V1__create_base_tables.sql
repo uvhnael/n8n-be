@@ -49,3 +49,11 @@ CREATE TABLE IF NOT EXISTS keywords (
 );
 
 CREATE INDEX idx_keyword ON keywords(keyword);
+
+CREATE TABLE IF NOT EXISTS users (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    roles VARCHAR(255),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

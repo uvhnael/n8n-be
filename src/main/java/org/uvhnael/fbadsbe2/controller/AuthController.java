@@ -15,6 +15,7 @@ import org.uvhnael.fbadsbe2.model.entity.User;
 import org.uvhnael.fbadsbe2.repository.UserRepository;
 import org.uvhnael.fbadsbe2.security.JwtUtil;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
 @RestController
@@ -53,6 +54,7 @@ public class AuthController {
                 .username(username)
                 .password(passwordEncoder.encode(password))
                 .roles("ROLE_USER")
+//                .createdAt(LocalDateTime.now())
                 .build();
 
         userRepository.save(user);
