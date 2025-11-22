@@ -20,6 +20,15 @@ public class LoggingConfig implements WebMvcConfigurer {
     @Slf4j
     public static class RequestLoggingInterceptor implements HandlerInterceptor {
 
+        // ANSI Color Codes
+        private static final String RESET = "\u001B[0m";
+        private static final String BLUE = "\u001B[34m";
+        private static final String GREEN = "\u001B[32m";
+        private static final String YELLOW = "\u001B[33m";
+        private static final String RED = "\u001B[31m";
+        private static final String CYAN = "\u001B[36m";
+        private static final String BOLD = "\u001B[1m";
+
         @Override
         public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
             long startTime = System.currentTimeMillis();
@@ -29,16 +38,15 @@ public class LoggingConfig implements WebMvcConfigurer {
             String uri = request.getRequestURI();
             String queryString = request.getQueryString();
             String remoteAddr = getClientIP(request);
-            String userAgent = request.getHeader("User-Agent");
 
-            log.info("=== Incoming Request ===");
-            log.info("Method: {}", method);
-            log.info("URI: {}", uri);
-            if (queryString != null) {
-                log.info("Query String: {}", queryString);
-            }
-            log.info("Remote IP: {}", remoteAddr);
-            log.info("User-Agent: {}", userAgent);
+            String logMessage = String.format("%s%s🔵 REQUEST%s | %s%s%s %s%s | IP: %s", 
+                BOLD, BLUE, RESET,
+                CYAN, method, RESET,
+                uri,
+                queryString != null ? "?" + queryString : "",
+                remoteAddr
+            );
+            log.info(logMessage);
 
             return true;
         }
@@ -53,17 +61,35 @@ public class LoggingConfig implements WebMvcConfigurer {
             String uri = request.getRequestURI();
             int status = response.getStatus();
 
-            log.info("=== Response ===");
-            log.info("Method: {}", method);
-            log.info("URI: {}", uri);
-            log.info("Status Code: {}", status);
-            log.info("Execution Time: {} ms", executeTime);
-
-            if (ex != null) {
-                log.error("Exception occurred: ", ex);
+            String statusIcon;
+            String statusColor;
+            if (status >= 200 && status < 300) {
+                statusIcon = "✅";
+                statusColor = GREEN;
+            } else if (status >= 400 && status < 500) {
+                statusIcon = "⚠️";
+                statusColor = YELLOW;
+            } else if (status >= 500) {
+                statusIcon = "❌";
+                statusColor = RED;
+            } else {
+                statusIcon = "ℹ️";
+                statusColor = CYAN;
             }
-
-            log.info("========================");
+            
+            String logMessage = String.format("%s%s%s RESPONSE%s | %s%s%s %s | Status: %s%d%s | Time: %s%dms%s", 
+                BOLD, statusColor, statusIcon, RESET,
+                CYAN, method, RESET,
+                uri,
+                statusColor, status, RESET,
+                YELLOW, executeTime, RESET
+            );
+            
+            if (ex != null) {
+                log.error(logMessage + " | " + RED + "Exception: " + ex.getMessage() + RESET, ex);
+            } else {
+                log.info(logMessage);
+            }
         }
 
         private String getClientIP(HttpServletRequest request) {
