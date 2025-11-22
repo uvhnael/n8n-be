@@ -1,4 +1,4 @@
--- V1__create_base_tables.sql
+    -- V1__create_base_tables.sql
 -- Create base tables: ads, insights, keywords
 
 CREATE TABLE IF NOT EXISTS ads (
