@@ -268,4 +268,23 @@ public class AdsService {
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
+
+    /**
+     * Check existence of ads by archive IDs
+     */
+    public Map<String, Boolean> checkAdsExistence(List<String> adArchiveIds) {
+        log.info("Checking existence for {} ad archive IDs", adArchiveIds.size());
+        
+        Map<String, Boolean> existenceMap = new HashMap<>();
+        
+        for (String adArchiveId : adArchiveIds) {
+            boolean exists = adsRepository.findByAdArchiveId(adArchiveId).isPresent();
+            existenceMap.put(adArchiveId, exists);
+        }
+        
+        long existingCount = existenceMap.values().stream().filter(Boolean::booleanValue).count();
+        log.info("Found {} existing ads out of {} checked", existingCount, adArchiveIds.size());
+        
+        return existenceMap;
+    }
 }
