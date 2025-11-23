@@ -213,4 +213,37 @@ public class AdsController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
+
+    /**
+     * Check existence of ads by archive IDs
+     */
+    @PostMapping("/check-existence")
+    @Operation(summary = "Check ads existence", description = "Check which ad archive IDs already exist in the database")
+    public ResponseEntity<Map<String, Object>> checkAdsExistence(@RequestBody List<String> adArchiveIds) {
+        try {
+            Map<String, Boolean> existenceMap = adsService.checkAdsExistence(adArchiveIds);
+            
+            List<String> existing = existenceMap.entrySet().stream()
+                    .filter(Map.Entry::getValue)
+                    .map(Map.Entry::getKey)
+                    .toList();
+            
+            List<String> notExisting = existenceMap.entrySet().stream()
+                    .filter(entry -> !entry.getValue())
+                    .map(Map.Entry::getKey)
+                    .toList();
+            
+            return ResponseEntity.ok(Map.of(
+                    "total", adArchiveIds.size(),
+                    "existingCount", existing.size(),
+                    "notExistingCount", notExisting.size(),
+                    "existing", existing,
+                    "notExisting", notExisting,
+                    "details", existenceMap
+            ));
+        } catch (Exception e) {
+            log.error("Error checking ads existence: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 }
