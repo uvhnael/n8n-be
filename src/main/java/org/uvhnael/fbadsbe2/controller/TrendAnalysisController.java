@@ -94,9 +94,12 @@ public class TrendAnalysisController {
     public ResponseEntity<?> analyzeTrendsNow() {
         try {
             log.info("Manual trend analysis triggered");
-            // Note: This will be implemented in TrendAnalysisService
-            return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
-                .body(Map.of("message", "Manual trend analysis not yet implemented. Trends are analyzed daily at 6 AM automatically."));
+            TrendAnalysis result = trendAnalysisService.analyzeWeeklyTrends();
+            return ResponseEntity.ok(Map.of(
+                "message", "Trend analysis completed successfully",
+                "analysisId", result.getId(),
+                "analysisDate", result.getAnalysisDate()
+            ));
         } catch (Exception e) {
             log.error("Error analyzing trends: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
