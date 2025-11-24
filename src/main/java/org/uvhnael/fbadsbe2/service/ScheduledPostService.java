@@ -17,6 +17,7 @@ import org.uvhnael.fbadsbe2.model.enums.PostStatus;
 import org.uvhnael.fbadsbe2.repository.GeneratedContentRepository;
 import org.uvhnael.fbadsbe2.repository.PublishHistoryRepository;
 import org.uvhnael.fbadsbe2.repository.ScheduledPostRepository;
+import org.uvhnael.fbadsbe2.utils.Util;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -59,8 +60,8 @@ public class ScheduledPostService {
             .platformPageId(dto.getPlatformPageId())
             .scheduledTime(dto.getScheduledTime())
             .postType(dto.getPostType())
-            .mediaUrls(convertListToJson(dto.getMediaUrls()))
-            .hashtags(convertListToJson(dto.getHashtags()))
+            .mediaUrls(Util.convertListToJson(dto.getMediaUrls()))
+            .hashtags(Util.convertListToJson(dto.getHashtags()))
             .callToAction(dto.getCallToAction())
             .status(PostStatus.PENDING.name())
             .retryCount(0)
@@ -134,8 +135,8 @@ public class ScheduledPostService {
         if (dto.getPlatform() != null) post.setPlatform(dto.getPlatform());
         if (dto.getPlatformPageId() != null) post.setPlatformPageId(dto.getPlatformPageId());
         if (dto.getPostType() != null) post.setPostType(dto.getPostType());
-        if (dto.getMediaUrls() != null) post.setMediaUrls(convertListToJson(dto.getMediaUrls()));
-        if (dto.getHashtags() != null) post.setHashtags(convertListToJson(dto.getHashtags()));
+        if (dto.getMediaUrls() != null) post.setMediaUrls(Util.convertListToJson(dto.getMediaUrls()));
+        if (dto.getHashtags() != null) post.setHashtags(Util.convertListToJson(dto.getHashtags()));
         if (dto.getCallToAction() != null) post.setCallToAction(dto.getCallToAction());
         
         post.setUpdatedAt(LocalDateTime.now());
@@ -208,18 +209,4 @@ public class ScheduledPostService {
         publishHistoryRepository.save(history);
     }
 
-    /**
-     * Helper method to convert list to JSON string
-     */
-    private String convertListToJson(List<String> list) {
-        if (list == null || list.isEmpty()) {
-            return null;
-        }
-        try {
-            return objectMapper.writeValueAsString(list);
-        } catch (JsonProcessingException e) {
-            log.error("Error converting list to JSON", e);
-            return null;
-        }
-    }
 }
