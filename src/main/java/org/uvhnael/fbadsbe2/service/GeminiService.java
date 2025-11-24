@@ -39,7 +39,7 @@ public class GeminiService {
         // Check if API key is configured
         if (apiKey == null || apiKey.isEmpty()) {
             log.warn("Gemini API key not configured. Returning mock response.");
-            return generateMockResponse(prompt);
+            return null;
         }
         
         try {
@@ -80,12 +80,12 @@ public class GeminiService {
                 return extractTextFromResponse(response.getBody());
             } else {
                 log.error("Unexpected response from Gemini API: {}", response.getStatusCode());
-                return generateMockResponse(prompt);
+                return null;
             }
             
         } catch (Exception e) {
             log.error("Error calling Gemini API: {}", e.getMessage(), e);
-            return generateMockResponse(prompt);
+            return null;
         }
     }
 
@@ -113,43 +113,6 @@ public class GeminiService {
         } catch (Exception e) {
             log.error("Error parsing Gemini response: {}", e.getMessage());
             return null;
-        }
-    }
-
-    /**
-     * Generate mock response when API is not available
-     */
-    private String generateMockResponse(String prompt) {
-        log.info("Generating mock response (API key not configured)");
-        
-        String mockTitle = "🌟 Ưu đãi đặc biệt cuối tuần - Giảm giá lên đến 50%!";
-        String mockContent = """
-            Chào mừng khách hàng đến với chương trình ưu đãi đặc biệt! 🎉
-            
-            ✨ Giảm giá lên đến 50% cho tất cả dịch vụ spa cao cấp
-            ⏰ Thời gian có hạn: Chỉ trong cuối tuần này
-            💝 Tặng kèm voucher trị giá 200k cho lần sử dụng tiếp theo
-            
-            Đừng bỏ lỡ cơ hội vàng này để chăm sóc bản thân! 
-            Đặt lịch ngay hôm nay để nhận ưu đãi tốt nhất.
-            
-            📞 Liên hệ: 0123-456-789
-            📍 Địa chỉ: 123 Đường ABC, Quận XYZ
-            
-            #spa #giamgia #beauty #chamsocbanhan #cuoituan
-            """;
-        
-        try {
-            Map<String, String> mockResponse = new HashMap<>();
-            mockResponse.put("title", mockTitle);
-            mockResponse.put("content", mockContent);
-            mockResponse.put("hashtags", "#spa #giamgia #beauty #chamsocbanhan #cuoituan");
-            mockResponse.put("cta", "Đặt lịch ngay để nhận ưu đãi!");
-            
-            return objectMapper.writeValueAsString(mockResponse);
-        } catch (Exception e) {
-            log.error("Error creating mock response: {}", e.getMessage());
-            return "{\"title\": \"Demo Title\", \"content\": \"Generated content\"}";
         }
     }
 }
