@@ -162,28 +162,63 @@ public class InsightsService {
      * Calculate CTA rate
      */
     private BigDecimal calculateCTARate(List<Ad> ads) {
-        if (ads.isEmpty()) {
+        // 1. Kiểm tra đầu vào an toàn
+        if (ads == null || ads.isEmpty()) {
             return BigDecimal.ZERO;
         }
-        
-        List<String> ctaKeywords = Arrays.asList(
-            "mua ngay", "đặt hàng", "đăng ký", "liên hệ", "tìm hiểu thêm",
-            "shop now", "buy now", "order now", "sign up", "learn more",
-            "book now", "đặt lịch", "gọi ngay", "call now"
+
+        // 2. Bộ từ khóa CTA chuyên dụng cho ngành Beauty
+        // Được chia nhóm để dễ dàng quản lý hoặc mở rộng sau này
+        List<String> beautyCTAKeywords = Arrays.asList(
+                // --- Nhóm Mua & Chốt đơn (Direct Sales) ---
+                "mua ngay", "đặt hàng", "chốt đơn", "lên đơn",
+                "shop now", "buy now", "order now", "add to cart",
+
+                // --- Nhóm Đặt lịch & Giữ chỗ (Booking - Rất quan trọng cho Spa/Clinic) ---
+                "đặt lịch", "book lịch", "đặt hẹn", "book hẹn",
+                "giữ chỗ", "giữ slot", "đặt suất", "lên lịch",
+                "book now", "schedule", "appointment", "reservation",
+
+                // --- Nhóm Tư vấn & Tương tác (Lead Gen) ---
+                "tư vấn", "nhắn tin", "inbox", "gửi tin", "chat ngay", "gọi ngay", "liên hệ",
+                "soi da", "thăm khám", "phác đồ", "báo giá",
+                "ib", "cmt", "comment", "dr", // Các từ viết tắt phổ biến: Inbox, Comment, Direct
+                "contact us", "call now", "message",
+
+                // --- Nhóm Khuyến mãi & Trải nghiệm (Offer) ---
+                "nhận ưu đãi", "săn deal", "lấy mã", "nhận voucher", "đăng ký ngay",
+                "dùng thử", "trải nghiệm", "nhận quà", "khám phá",
+                "sign up", "register", "claim offer", "get offer"
         );
-        
+
+        // 3. Lọc và đếm số lượng Ads có chứa CTA
         long adsWithCTA = ads.stream()
-            .filter(ad -> {
-                String caption = ad.getCaption();
-                if (caption == null) return false;
-                String lowerCaption = caption.toLowerCase();
-                return ctaKeywords.stream().anyMatch(lowerCaption::contains);
-            })
-            .count();
-        
+                .filter(Objects::nonNull) // Bỏ qua các object Ad bị null
+                .map(Ad::getCaption)      // Lấy nội dung caption
+                .filter(caption -> containsCTA(caption, beautyCTAKeywords)) // Kiểm tra CTA
+                .count();
+
+        // 4. Tính phần trăm: (Số Ads có CTA / Tổng số Ads) * 100
         return BigDecimal.valueOf(adsWithCTA)
-            .multiply(BigDecimal.valueOf(100))
-            .divide(BigDecimal.valueOf(ads.size()), 2, RoundingMode.HALF_UP);
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(ads.size()), 2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Hàm phụ trợ để kiểm tra xem văn bản có chứa từ khóa CTA không.
+     * Xử lý: Null check, Lowercase.
+     */
+    private boolean containsCTA(String text, List<String> keywords) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+
+        // Chuyển về chữ thường để so sánh không phân biệt hoa thường
+        String lowerText = text.toLowerCase();
+
+        // Sử dụng Parallel Stream nếu danh sách keywords quá dài (optional),
+        // nhưng với list này thì stream thường là đủ nhanh.
+        return keywords.stream().anyMatch(lowerText::contains);
     }
 
     /**
