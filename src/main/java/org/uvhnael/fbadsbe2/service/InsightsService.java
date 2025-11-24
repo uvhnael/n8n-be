@@ -11,6 +11,7 @@ import org.uvhnael.fbadsbe2.model.entity.Keyword;
 import org.uvhnael.fbadsbe2.repository.AdsRepository;
 import org.uvhnael.fbadsbe2.repository.InsightsRepository;
 import org.uvhnael.fbadsbe2.repository.KeywordsRepository;
+import org.uvhnael.fbadsbe2.utils.Util;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -167,58 +168,20 @@ public class InsightsService {
             return BigDecimal.ZERO;
         }
 
-        // 2. Bộ từ khóa CTA chuyên dụng cho ngành Beauty
-        // Được chia nhóm để dễ dàng quản lý hoặc mở rộng sau này
-        List<String> beautyCTAKeywords = Arrays.asList(
-                // --- Nhóm Mua & Chốt đơn (Direct Sales) ---
-                "mua ngay", "đặt hàng", "chốt đơn", "lên đơn",
-                "shop now", "buy now", "order now", "add to cart",
-
-                // --- Nhóm Đặt lịch & Giữ chỗ (Booking - Rất quan trọng cho Spa/Clinic) ---
-                "đặt lịch", "book lịch", "đặt hẹn", "book hẹn",
-                "giữ chỗ", "giữ slot", "đặt suất", "lên lịch",
-                "book now", "schedule", "appointment", "reservation",
-
-                // --- Nhóm Tư vấn & Tương tác (Lead Gen) ---
-                "tư vấn", "nhắn tin", "inbox", "gửi tin", "chat ngay", "gọi ngay", "liên hệ",
-                "soi da", "thăm khám", "phác đồ", "báo giá",
-                "ib", "cmt", "comment", "dr", // Các từ viết tắt phổ biến: Inbox, Comment, Direct
-                "contact us", "call now", "message",
-
-                // --- Nhóm Khuyến mãi & Trải nghiệm (Offer) ---
-                "nhận ưu đãi", "săn deal", "lấy mã", "nhận voucher", "đăng ký ngay",
-                "dùng thử", "trải nghiệm", "nhận quà", "khám phá",
-                "sign up", "register", "claim offer", "get offer"
-        );
+        // Use CTA keywords from Util
+        List<String> beautyCTAKeywords = Util.getBeautyCTAKeywords();
 
         // 3. Lọc và đếm số lượng Ads có chứa CTA
         long adsWithCTA = ads.stream()
                 .filter(Objects::nonNull) // Bỏ qua các object Ad bị null
                 .map(Ad::getCaption)      // Lấy nội dung caption
-                .filter(caption -> containsCTA(caption, beautyCTAKeywords)) // Kiểm tra CTA
+                .filter(caption -> Util.containsAnyKeyword(caption, beautyCTAKeywords)) // Kiểm tra CTA
                 .count();
 
         // 4. Tính phần trăm: (Số Ads có CTA / Tổng số Ads) * 100
         return BigDecimal.valueOf(adsWithCTA)
                 .multiply(BigDecimal.valueOf(100))
                 .divide(BigDecimal.valueOf(ads.size()), 2, RoundingMode.HALF_UP);
-    }
-
-    /**
-     * Hàm phụ trợ để kiểm tra xem văn bản có chứa từ khóa CTA không.
-     * Xử lý: Null check, Lowercase.
-     */
-    private boolean containsCTA(String text, List<String> keywords) {
-        if (text == null || text.isBlank()) {
-            return false;
-        }
-
-        // Chuyển về chữ thường để so sánh không phân biệt hoa thường
-        String lowerText = text.toLowerCase();
-
-        // Sử dụng Parallel Stream nếu danh sách keywords quá dài (optional),
-        // nhưng với list này thì stream thường là đủ nhanh.
-        return keywords.stream().anyMatch(lowerText::contains);
     }
 
     /**
@@ -242,15 +205,7 @@ public class InsightsService {
             .orElse(DayOfWeek.MONDAY);
         
         // Convert to Vietnamese
-        return switch (mostActiveDay) {
-            case MONDAY -> "Thứ 2";
-            case TUESDAY -> "Thứ 3";
-            case WEDNESDAY -> "Thứ 4";
-            case THURSDAY -> "Thứ 5";
-            case FRIDAY -> "Thứ 6";
-            case SATURDAY -> "Thứ 7";
-            case SUNDAY -> "Chủ Nhật";
-        };
+        return Util.dayOfWeekToVietnamese(mostActiveDay);
     }
 
     /**
@@ -327,24 +282,16 @@ public class InsightsService {
     private void extractAndSaveKeywords(Insight insight, List<Ad> ads) {
         Map<String, Integer> keywordCount = new HashMap<>();
         
-        // Common stop words to exclude
-        Set<String> stopWords = Set.of(
-            "và", "của", "có", "được", "này", "đó", "cho", "với", "từ", "trong",
-            "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for"
-        );
+        // Get stop words from Util
+        Set<String> stopWords = Util.getVietnameseStopWords();
         
         // Extract keywords from captions
         for (Ad ad : ads) {
             if (ad.getCaption() != null && !ad.getCaption().isEmpty()) {
-                String[] words = ad.getCaption()
-                    .toLowerCase()
-                    .replaceAll("[^a-zA-ZÀ-ỹ0-9\\s]", " ")
-                    .split("\\s+");
+                String[] words = Util.extractKeywords(ad.getCaption());
                 
                 for (String word : words) {
-                    if (word.length() >= 3 && !stopWords.contains(word)) {
-                        keywordCount.merge(word, 1, Integer::sum);
-                    }
+                    keywordCount.merge(word, 1, Integer::sum);
                 }
             }
         }

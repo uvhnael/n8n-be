@@ -11,6 +11,7 @@ import org.uvhnael.fbadsbe2.model.dto.ContentGenerateRequest;
 import org.uvhnael.fbadsbe2.model.entity.GeneratedContent;
 import org.uvhnael.fbadsbe2.model.enums.ContentStatus;
 import org.uvhnael.fbadsbe2.repository.GeneratedContentRepository;
+import org.uvhnael.fbadsbe2.utils.Util;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -148,7 +149,7 @@ public class ContentGeneratorService {
                 .content(content)
                 .contentType(request.getContentType())
                 .platform(request.getPlatform())
-                .basedOnKeywords(convertListToJson(request.getKeywords()))
+                .basedOnKeywords(Util.convertListToJson(request.getKeywords()))
                 .aiModel("gemini-2.0-flash-exp")
                 .generationPrompt(buildPrompt(request))
                 .status(ContentStatus.DRAFT.name())
@@ -163,7 +164,7 @@ public class ContentGeneratorService {
                 .content(generatedText)
                 .contentType(request.getContentType())
                 .platform(request.getPlatform())
-                .basedOnKeywords(convertListToJson(request.getKeywords()))
+                .basedOnKeywords(Util.convertListToJson(request.getKeywords()))
                 .aiModel("gemini-2.0-flash-exp")
                 .generationPrompt(buildPrompt(request))
                 .status(ContentStatus.DRAFT.name())
@@ -259,18 +260,4 @@ public class ContentGeneratorService {
         return contentRepository.save(content);
     }
 
-    /**
-     * Helper method to convert list to JSON string
-     */
-    private String convertListToJson(List<String> list) {
-        if (list == null || list.isEmpty()) {
-            return null;
-        }
-        try {
-            return objectMapper.writeValueAsString(list);
-        } catch (JsonProcessingException e) {
-            log.error("Error converting list to JSON", e);
-            return null;
-        }
-    }
 }

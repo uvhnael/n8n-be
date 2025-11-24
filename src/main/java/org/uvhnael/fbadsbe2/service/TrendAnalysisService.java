@@ -11,6 +11,7 @@ import org.uvhnael.fbadsbe2.model.entity.Ad;
 import org.uvhnael.fbadsbe2.model.entity.TrendAnalysis;
 import org.uvhnael.fbadsbe2.repository.AdsRepository;
 import org.uvhnael.fbadsbe2.repository.TrendAnalysisRepository;
+import org.uvhnael.fbadsbe2.utils.Util;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -71,7 +72,7 @@ public class TrendAnalysisService {
         log.info("Received AI response, parsing JSON...");
 
         // Clean the response (remove ```json markdown blocks)
-        String cleanedResponse = cleanJsonResponse(aiResponse);
+        String cleanedResponse = Util.cleanJsonResponse(aiResponse);
 
         // Parse JSON into DTO
         TrendAnalysisResponse analysisResponse;
@@ -134,26 +135,6 @@ public class TrendAnalysisService {
                 
                 Chỉ trả về JSON object, không có text hoặc formatting bổ sung. Tất cả nội dung văn bản phải bằng tiếng Việt.
                 """, adsContent);
-    }
-
-    /**
-     * Clean JSON response by removing markdown code blocks
-     */
-    private String cleanJsonResponse(String response) {
-        String cleaned = response.trim();
-        
-        // Remove ```json or ``` code blocks
-        if (cleaned.startsWith("```json")) {
-            cleaned = cleaned.substring(7);
-        } else if (cleaned.startsWith("```")) {
-            cleaned = cleaned.substring(3);
-        }
-        
-        if (cleaned.endsWith("```")) {
-            cleaned = cleaned.substring(0, cleaned.length() - 3);
-        }
-        
-        return cleaned.trim();
     }
 
     /**
