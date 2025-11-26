@@ -213,4 +213,11 @@ public class Util {
     public static boolean isNullOrBlank(String str) {
         return str == null || str.isBlank();
     }
+
+    // check if number is null
+    public static boolean isNullOrZero(Number number) {
+        return number == null || number.doubleValue() == 0.0;
+    }
+
+
 }
