@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface TrendAnalysisRepository extends JpaRepository<TrendAnalysis, Long> {
     Optional<TrendAnalysis> findTopByOrderByCreatedAtDesc();
     Optional<TrendAnalysis> findByAnalysisDate(LocalDate date);
+    Optional<TrendAnalysis>  findTopByOrderByAnalysisDateDesc();
 }

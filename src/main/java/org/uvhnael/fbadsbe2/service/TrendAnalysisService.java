@@ -85,13 +85,10 @@ public class TrendAnalysisService {
             throw new RuntimeException("Failed to parse AI response", e);
         }
 
-        log.info("Analysis response: {}", analysisResponse);
-
         // Convert DTO fields to JSON strings and create entity
         TrendAnalysis trendAnalysis = convertToEntity(analysisResponse);
 
-        log.info("Trend analysis: {}", trendAnalysis);
-        
+
         // Save to database
         TrendAnalysis savedAnalysis = trendAnalysisRepository.save(trendAnalysis);
         log.info("Trend analysis saved with ID: {}", savedAnalysis.getId());
