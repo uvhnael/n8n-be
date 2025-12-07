@@ -7,7 +7,7 @@ import java.util.List;
 public class ContentGenerateRequest {
     private String contentType;
     private String platform;
-    private Long basedOnInsightId;
+    private Long basedOnTrendAnalysisId;
     private List<String> keywords;
     private String tone;
     private String length;
