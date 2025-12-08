@@ -2,7 +2,7 @@
 
 ## 📝 Project Overview
 
-Backend API Spring Boot 3.x cho hệ thống:
+Backend API Spring Boot 3.x cho hệ thống
 
 - ✅ Quản lý & phân tích Facebook Ads từ n8n
 - ✅ **Auto tạo bài viết dựa trên trend phân tích**
