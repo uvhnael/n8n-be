@@ -1,0 +1,203 @@
+services:
+  # -------------------------------------------------------
+  # MySQL Primary
+  # -------------------------------------------------------
+  mysql-primary:
+    image: mysql:8.0
+    container_name: mysql-primary
+    hostname: mysql-primary
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: n8n_db
+    ports:
+      - "3307:3306" # <--- MAP RA NGOÀI HOST
+    volumes:
+      - mysql-primary-data:/var/lib/mysql
+    command: >
+      --server-id=1
+      --log-bin=mysql-bin
+      --binlog-format=ROW
+      --gtid-mode=ON
+      --enforce-gtid-consistency=ON
+      --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # -------------------------------------------------------
+  # MySQL Replica
+  # -------------------------------------------------------
+  mysql-replica:
+    image: mysql:8.0
+    container_name: mysql-replica
+    hostname: mysql-replica
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: n8n_db
+    ports:
+      - "3308:3306" # <--- MAP RA NGOÀI HOST
+    depends_on:
+      mysql-primary:
+        condition: service_healthy
+    volumes:
+      - mysql-replica-data:/var/lib/mysql
+    command: >
+      --server-id=2
+      --log-bin=mysql-bin
+      --binlog-format=ROW
+      --gtid-mode=ON
+      --enforce-gtid-consistency=ON
+      --read-only=ON
+      --default-authentication-plugin=mysql_native_password
+
+  # -------------------------------------------------------
+  # ProxySQL Main
+  # -------------------------------------------------------
+  proxysql:
+    image: proxysql/proxysql:2.6.1
+    container_name: proxysql
+    hostname: proxysql
+    ports:
+      - "6033:6033"
+      - "6032:6032"
+    depends_on:
+      - mysql-primary
+      - mysql-replica
+
+  # -------------------------------------------------------
+  # ProxySQL Backup
+  # -------------------------------------------------------
+  proxysql-backup:
+    image: proxysql/proxysql:2.6.1
+    container_name: proxysql-backup
+    hostname: proxysql-backup
+    ports:
+      - "6034:6033"
+      - "6035:6032"
+    depends_on:
+      - mysql-primary
+      - mysql-replica
+
+  # -------------------------------------------------------
+  # HAProxy điều phối 2 ProxySQL
+  # -------------------------------------------------------
+  haproxy:
+    image: haproxy:2.4
+    container_name: haproxy
+    restart: always
+    ports:
+      - "3306:3306"
+      - "8404:8404"
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      - proxysql
+      - proxysql-backup
+
+  # -------------------------------------------------------
+  # Orchestrator
+  # -------------------------------------------------------
+  orchestrator:
+    image: openarkcode/orchestrator:latest
+    container_name: orchestrator
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./orchestrator.conf.json:/etc/orchestrator.conf.json
+      - orchestrator-data:/var/lib/orchestrator
+    depends_on:
+      - mysql-primary
+
+  # -------------------------------------------------------
+  # phpMyAdmin
+  # -------------------------------------------------------
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    environment:
+      PMA_HOSTS: mysql-primary,mysql-replica
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: root_password
+    ports:
+      - "8080:80"
+    depends_on:
+      - mysql-primary
+      - mysql-replica
+
+  # -------------------------------------------------------
+  # MySQL Exporter (Primary)
+  # -------------------------------------------------------
+  mysqld-exporter-primary:
+    image: prom/mysqld-exporter
+    container_name: mysqld-exporter-primary
+    command:
+      - "--config.my-cnf=/config/.my.cnf"
+    volumes:
+      - ./exporter-primary.cnf:/config/.my.cnf
+    depends_on:
+      - mysql-primary
+    ports:
+      - "9104:9104"
+
+  # -------------------------------------------------------
+  # MySQL Exporter (Replica)
+  # -------------------------------------------------------
+  mysqld-exporter-replica:
+    image: prom/mysqld-exporter
+    container_name: mysqld-exporter-replica
+    command:
+      - "--config.my-cnf=/config/.my.cnf"
+    volumes:
+      - ./exporter-replica.cnf:/config/.my.cnf
+    depends_on:
+      - mysql-replica
+    ports:
+      - "9105:9105"
+
+  # -------------------------------------------------------
+  # ProxySQL Exporter
+  # -------------------------------------------------------
+  proxysql-exporter:
+    image: superbalist/proxysql-exporter
+    container_name: proxysql-exporter
+    environment:
+      PROXYSQL_EXPORTER_ADMIN_USERNAME: admin
+      PROXYSQL_EXPORTER_ADMIN_PASSWORD: admin
+      PROXYSQL_EXPORTER_ADMIN_ADDRESS: proxysql:6032
+    ports:
+      - "42004:42004"
+    depends_on:
+      - proxysql
+
+  # -------------------------------------------------------
+  # Prometheus
+  # -------------------------------------------------------
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - mysqld-exporter-primary
+      - mysqld-exporter-replica
+      - proxysql-exporter
+
+  # -------------------------------------------------------
+  # Grafana
+  # -------------------------------------------------------
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  mysql-primary-data:
+  mysql-replica-data:
+  orchestrator-data:
