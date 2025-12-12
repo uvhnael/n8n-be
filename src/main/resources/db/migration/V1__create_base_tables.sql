@@ -7,10 +7,10 @@ CREATE TABLE IF NOT EXISTS ads (
     page_name VARCHAR(255),
     caption TEXT,
     type_ads VARCHAR(50),                      -- IMAGE, VIDEO, CAROUSEL
-    url_ads_post VARCHAR(500),
+    url_ads_post TEXT,
     ai_analyze TEXT,
-    img_url VARCHAR(500),
-    video_url VARCHAR(500),
+    img_url TEXT,
+    video_url TEXT,
     status VARCHAR(20) DEFAULT 'ACTIVE',
     time_created DATE,
     scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
