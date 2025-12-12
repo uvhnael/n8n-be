@@ -17,18 +17,13 @@ public class Ad {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "ad_archive_id", unique = true, nullable = false)
+    @Column(name = "ad_archive_id")
     private String adArchiveId;
 
     private String pageName;
-
-    @Column(columnDefinition = "TEXT")
     private String caption;
-
     private String typeAds;
     private String urlAdsPost;
-
-    @Column(columnDefinition = "TEXT")
     private String aiAnalyze;
 
     private String imgUrl;

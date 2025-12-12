@@ -26,9 +26,6 @@ public class Insight {
     private String dominantFormat;
     private java.math.BigDecimal ctaRate;
     private String mostActiveDay;
-
-    @Column(columnDefinition = "TEXT")
     private String aiStrategyReport;
-
     private LocalDateTime createdAt;
 }

@@ -19,12 +19,7 @@ public class PublishHistory {
     private Long scheduledPostId;
     private String action;
     private String status;
-
-    @Column(columnDefinition = "TEXT")
     private String message;
-
-    @Column(columnDefinition = "JSON")
     private String metadata;
-
     private LocalDateTime createdAt;
 }

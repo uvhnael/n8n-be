@@ -19,23 +19,11 @@ public class TrendAnalysis {
     private Long id;
 
     private LocalDate analysisDate;
-
-    @Column(columnDefinition = "JSON")
     private String trendingKeywords;
-
-    @Column(columnDefinition = "JSON")
     private String trendingTopics;
-
-    @Column(columnDefinition = "JSON")
     private String competitorActivity;
-
-    @Column(columnDefinition = "JSON")
     private String contentSuggestions;
-
-    @Column(columnDefinition = "JSON")
     private String optimalPostingTimes;
-
-    @Column(columnDefinition = "TEXT")
     private String aiSummary;
 
     private BigDecimal confidenceScore;

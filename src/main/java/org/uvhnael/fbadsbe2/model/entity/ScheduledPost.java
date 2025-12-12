@@ -21,18 +21,12 @@ public class ScheduledPost {
     private String platformPageId;
     private LocalDateTime scheduledTime;
     private String postType;
-
-    @Column(columnDefinition = "JSON")
     private String mediaUrls;
-
-    @Column(columnDefinition = "JSON")
     private String hashtags;
-
     private String callToAction;
 
     private String status;
     private LocalDateTime publishedAt;
-    @Column(columnDefinition = "TEXT")
     private String publishError;
     private Integer retryCount;
 
