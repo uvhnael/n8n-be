@@ -175,7 +175,13 @@ public class ContentGeneratorService {
         }
         prompt.append("\n");
         
-        // Critical output format instruction
+        // Critical output format
+        prompt.append("=== YÊU CẦU RIÊNG CHO IMAGE_PROMPT ===\n");
+        prompt.append("✓ image_prompt phải là 1 dòng duy nhất, không xuống dòng\n");
+        prompt.append("✓ Không được chứa ký tự nháy kép trong image_prompt\n");
+        prompt.append("✓ Không markdown, không bullet, không numbering\n");
+        prompt.append("✓ Không được chứa chữ, logo, watermark, UI trong ảnh\n");
+        prompt.append("✓ Phải mô tả nội dung hình ảnh liên quan trực tiếp tới content\n\n");
         prompt.append("=== QUAN TRỌNG: FORMAT OUTPUT ===\n");
         prompt.append("⚠️ CHỈ TRẢ VỀ JSON THUẦN TÚY - KHÔNG thêm markdown, KHÔNG giải thích, KHÔNG ```json\n");
         prompt.append("Cấu trúc JSON bắt buộc:\n");
@@ -184,7 +190,7 @@ public class ContentGeneratorService {
         prompt.append("  \"content\": \"Nội dung chi tiết, sử dụng trending keywords\",\n");
         prompt.append("  \"hashtags\": \"#hashtag1 #hashtag2 #hashtag3...\",\n");
         prompt.append("  \"cta\": \"Call-to-action mạnh mẽ\",\n");
-        prompt.append("  \"image_prompt\": \"Prompt để tạo ảnh liên quan đến nội dung này\"\n");
+        prompt.append("  \"image_prompt\": \"Ultra-photorealistic cinematic image, professional photography, realistic lighting, soft depth of field, detailed textures, natural skin, true-to-life colors, subtle film grain, no illustration, no CGI, no cartoon, no anime, no painting, no text, no watermark, no logo, no UI, no captions, followed by a description of the image that matches the content\"\n");
         prompt.append("}\n\n");
         prompt.append("Bắt đầu ngay bằng ký tự { và kết thúc bằng }. Không thêm bất kỳ text nào khác!\n");
         
@@ -205,7 +211,12 @@ public class ContentGeneratorService {
             String hashtags = json.has("hashtags") ? json.get("hashtags").asText() : "";
             String cta = json.has("cta") ? json.get("cta").asText() : "";
             String imagePrompt = json.has("image_prompt") ? json.get("image_prompt").asText() : "";
-            
+            if (!Util.isNullOrBlank(imagePrompt)) {
+                imagePrompt = imagePrompt
+                        .replaceAll("[\\r\\n]+", " ")     // bỏ newline
+                        .replaceAll("\"", "'")            // tránh phá JSON downstream
+                        .trim();
+            }
             // Combine content with hashtags and CTA
             StringBuilder finalContent = new StringBuilder(content);
             
@@ -245,8 +256,8 @@ public class ContentGeneratorService {
                 .basedOnKeywords(Util.convertListToJson(request.getKeywords()))
                 .aiModel(model)
                 .generationPrompt(prompt)
-                .imagePrompt("")
-                .status(ContentStatus.DRAFT.name())
+                    .imagePrompt("Ultra-photorealistic cinematic image, professional photography, realistic lighting, shallow depth of field, natural colors, subtle film grain, no text, no watermark, no logo, no UI.")
+                    .status(ContentStatus.DRAFT.name())
                 .build();
         }
     }
