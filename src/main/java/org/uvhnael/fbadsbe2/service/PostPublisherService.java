@@ -11,6 +11,8 @@ import org.uvhnael.fbadsbe2.repository.GeneratedContentRepository;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
