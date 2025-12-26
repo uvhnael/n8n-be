@@ -32,7 +32,7 @@ public class PostPublisherService {
      * Payload includes unix timestamp for scheduledTime
      */
     public void schedulePostViaN8n(ScheduledPostDTO dto) {
-        log.info("Scheduling post via n8n webhook for content ID: {}", dto.getContentId());
+        log.info("Processing post for content ID: {}", dto.getContentId());
         
         // Validate content exists and is approved
         GeneratedContent content = contentRepository.findById(dto.getContentId())
@@ -42,38 +42,50 @@ public class PostPublisherService {
             throw new RuntimeException("Content must be approved before scheduling. Current status: " + content.getStatus());
         }
         
-        // Parse and validate scheduled time from ISO string
-        OffsetDateTime scheduledTime;
-        try {
-            scheduledTime = OffsetDateTime.parse(dto.getScheduledTime());
-            log.debug("Parsed scheduled time: {}", scheduledTime);
-        } catch (DateTimeParseException e) {
-            throw new RuntimeException("Invalid scheduled time format. Expected ISO 8601 format like '2025-12-26T21:02:00.000Z', got: " + dto.getScheduledTime());
-        }
+        // Determine action based on scheduled time
+        String action;
+        Long scheduledTimestamp = null;
         
-        // Validate scheduled time is in the future (convert to Vietnam timezone)
-        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
-        ZonedDateTime scheduledZoned = scheduledTime.atZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh"));
-        
-        if (scheduledZoned.isBefore(now)) {
-            throw new RuntimeException("Scheduled time must be in the future. Current time: " + now + ", scheduled: " + scheduledZoned);
+        if (dto.getScheduledTime() == null) {
+            log.info("No scheduled time provided, posting immediately for content ID: {}", dto.getContentId());
+            action = "post";
+        } else {
+            log.info("Scheduling post via n8n webhook for content ID: {}", dto.getContentId());
+            action = "schedule";
+            
+            // Parse and validate scheduled time from ISO string
+            OffsetDateTime scheduledTime;
+            try {
+                scheduledTime = OffsetDateTime.parse(dto.getScheduledTime());
+                log.debug("Parsed scheduled time: {}", scheduledTime);
+            } catch (DateTimeParseException e) {
+                throw new RuntimeException("Invalid scheduled time format. Expected ISO 8601 format like '2025-12-26T21:02:00.000Z', got: " + dto.getScheduledTime());
+            }
+            
+            // Validate scheduled time is in the future (convert to Vietnam timezone)
+            ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+            ZonedDateTime scheduledZoned = scheduledTime.atZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh"));
+            
+            if (scheduledZoned.isBefore(now)) {
+                throw new RuntimeException("Scheduled time must be in the future. Current time: " + now + ", scheduled: " + scheduledZoned);
+            }
+            
+            scheduledTimestamp = scheduledTime.toEpochSecond();
         }
-
-
         
         // Check if webhook URL is configured
         if (n8nWebhookUrl == null || n8nWebhookUrl.isEmpty()) {
-            log.warn("n8n webhook URL not configured. Cannot schedule post.");
+            log.warn("n8n webhook URL not configured. Cannot process post.");
             throw new RuntimeException("n8n webhook URL not configured");
         }
         
-        // Build webhook payload for scheduling
+        // Build webhook payload
         Map<String, Object> payload = new HashMap<>();
-        payload.put("action", "schedule");
+        payload.put("action", action);
         payload.put("contentId", dto.getContentId());
         payload.put("platform", dto.getPlatform());
         payload.put("platformPageId", dto.getPlatformPageId());
-        payload.put("scheduledTime", scheduledTime.toEpochSecond()); // Convert to Unix timestamp
+        payload.put("scheduledTime", scheduledTimestamp); // null for immediate, timestamp for scheduled
         payload.put("postType", dto.getPostType());
         payload.put("mediaUrls", dto.getMediaUrls());
         payload.put("hashtags", dto.getHashtags());
@@ -87,11 +99,15 @@ public class PostPublisherService {
             @SuppressWarnings("unchecked")
             Map<String, Object> response = restTemplate.postForObject(n8nWebhookUrl, payload, Map.class);
             
-            log.info("Successfully triggered n8n webhook for scheduling post at {}", scheduledTime);
+            if ("post".equals(action)) {
+                log.info("Successfully triggered n8n webhook for immediate posting");
+            } else {
+                log.info("Successfully triggered n8n webhook for scheduling post at {}", scheduledTimestamp);
+            }
             
         } catch (Exception e) {
-            log.error("Failed to trigger n8n webhook for scheduling: {}", e.getMessage());
-            throw new RuntimeException("Failed to schedule post via n8n: " + e.getMessage(), e);
+            log.error("Failed to trigger n8n webhook: {}", e.getMessage());
+            throw new RuntimeException("Failed to process post via n8n: " + e.getMessage(), e);
         }
     }
 }
