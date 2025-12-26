@@ -9,8 +9,10 @@ import org.uvhnael.fbadsbe2.model.dto.ScheduledPostDTO;
 import org.uvhnael.fbadsbe2.model.entity.GeneratedContent;
 import org.uvhnael.fbadsbe2.repository.GeneratedContentRepository;
 
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -27,6 +29,7 @@ public class PostPublisherService {
 
     /**
      * Schedule a post by triggering n8n webhook (replaces database scheduling)
+     * Payload includes unix timestamp for scheduledTime
      */
     public void schedulePostViaN8n(ScheduledPostDTO dto) {
         log.info("Scheduling post via n8n webhook for content ID: {}", dto.getContentId());
@@ -39,13 +42,24 @@ public class PostPublisherService {
             throw new RuntimeException("Content must be approved before scheduling. Current status: " + content.getStatus());
         }
         
-        // Validate scheduled time is in the future
+        // Parse and validate scheduled time from ISO string
+        OffsetDateTime scheduledTime;
+        try {
+            scheduledTime = OffsetDateTime.parse(dto.getScheduledTime());
+            log.debug("Parsed scheduled time: {}", scheduledTime);
+        } catch (DateTimeParseException e) {
+            throw new RuntimeException("Invalid scheduled time format. Expected ISO 8601 format like '2025-12-26T21:02:00.000Z', got: " + dto.getScheduledTime());
+        }
+        
+        // Validate scheduled time is in the future (convert to Vietnam timezone)
         ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
-        ZonedDateTime scheduledZoned = dto.getScheduledTime().atZone(ZoneId.of("Asia/Ho_Chi_Minh"));
+        ZonedDateTime scheduledZoned = scheduledTime.atZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh"));
         
         if (scheduledZoned.isBefore(now)) {
             throw new RuntimeException("Scheduled time must be in the future. Current time: " + now + ", scheduled: " + scheduledZoned);
         }
+
+
         
         // Check if webhook URL is configured
         if (n8nWebhookUrl == null || n8nWebhookUrl.isEmpty()) {
@@ -59,7 +73,7 @@ public class PostPublisherService {
         payload.put("contentId", dto.getContentId());
         payload.put("platform", dto.getPlatform());
         payload.put("platformPageId", dto.getPlatformPageId());
-        payload.put("scheduledTime", dto.getScheduledTime());
+        payload.put("scheduledTime", scheduledTime.toEpochSecond()); // Convert to Unix timestamp
         payload.put("postType", dto.getPostType());
         payload.put("mediaUrls", dto.getMediaUrls());
         payload.put("hashtags", dto.getHashtags());
@@ -73,7 +87,7 @@ public class PostPublisherService {
             @SuppressWarnings("unchecked")
             Map<String, Object> response = restTemplate.postForObject(n8nWebhookUrl, payload, Map.class);
             
-            log.info("Successfully triggered n8n webhook for scheduling post at {}", dto.getScheduledTime());
+            log.info("Successfully triggered n8n webhook for scheduling post at {}", scheduledTime);
             
         } catch (Exception e) {
             log.error("Failed to trigger n8n webhook for scheduling: {}", e.getMessage());

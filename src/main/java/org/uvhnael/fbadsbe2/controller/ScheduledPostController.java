@@ -36,8 +36,8 @@ public class ScheduledPostController {
     @Operation(summary = "Publish a post immediately via n8n webhook")
     public ResponseEntity<?> publishNow(@RequestBody ScheduledPostDTO dto) {
         try {
-            // For immediate publishing, set scheduled time to now
-            dto.setScheduledTime(java.time.LocalDateTime.now());
+            // For immediate publishing, set scheduled time to now (ISO format)
+            dto.setScheduledTime(java.time.OffsetDateTime.now().toString());
             postPublisherService.schedulePostViaN8n(dto);
             return ResponseEntity.ok(Map.of("message", "Post published immediately via n8n"));
         } catch (Exception e) {
