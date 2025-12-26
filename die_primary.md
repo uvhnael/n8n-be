@@ -61,10 +61,8 @@ Nếu thấy dòng này, nghĩa là Orchestrator đã phát hiện lỗi và kí
 Sau khi log trên chạy xong, hãy kiểm tra lại cả 2 ProxySQL xem đã đổi chủ chưa.
 
 ```bash
-# Kiểm tra ProxySQL Main
 docker exec -it proxysql mysql -uradmin -pradmin -h127.0.0.1 -P6032 -e "SELECT * FROM runtime_mysql_servers WHERE hostgroup_id=10;"
 
-# Kiểm tra ProxySQL Backup
 docker exec -it proxysql-backup mysql -uradmin -pradmin -h127.0.0.1 -P6032 -e "SELECT * FROM runtime_mysql_servers WHERE hostgroup_id=10;"
 ```
 
@@ -104,13 +102,13 @@ CHANGE REPLICATION SOURCE TO
 START REPLICA;
 "
 ```
-### 3. Thêm nó lại vào cả 2 ProxySQL (Nhóm đọc - HG 20)
+### 3. Cập nhật cả 2 ProxySQL (Nhóm đọc - HG 20)
 
-Vì lúc nãy nó chết nên script có thể chưa xử lý việc đưa nó vào lại nhóm đọc, hoặc chúng ta cần add lại cho chắc.
+Vì lúc nãy `mysql-replica` đã thành Master (HG 10), nó không nên ở nhóm đọc nữa. Đồng thời thêm `mysql-primary` (giờ là Replica) vào nhóm đọc.
 
 ```bash
-# Thêm vào ProxySQL Main
 docker exec -it proxysql mysql -uradmin -pradmin -h127.0.0.1 -P6032 -e "
+    DELETE FROM mysql_servers WHERE hostname='mysql-replica' AND hostgroup_id=20;
     INSERT INTO mysql_servers (hostgroup_id, hostname, port) 
     SELECT 20, 'mysql-primary', 3306 
     WHERE NOT EXISTS (SELECT 1 FROM mysql_servers WHERE hostname='mysql-primary' AND hostgroup_id=20);
@@ -118,8 +116,8 @@ docker exec -it proxysql mysql -uradmin -pradmin -h127.0.0.1 -P6032 -e "
     SAVE MYSQL SERVERS TO DISK;
 "
 
-# Thêm vào ProxySQL Backup
 docker exec -it proxysql-backup mysql -uradmin -pradmin -h127.0.0.1 -P6032 -e "
+    DELETE FROM mysql_servers WHERE hostname='mysql-replica' AND hostgroup_id=20;
     INSERT INTO mysql_servers (hostgroup_id, hostname, port) 
     SELECT 20, 'mysql-primary', 3306 
     WHERE NOT EXISTS (SELECT 1 FROM mysql_servers WHERE hostname='mysql-primary' AND hostgroup_id=20);
@@ -142,7 +140,6 @@ docker exec -it mysql-primary mysql -uroot -proot_password -e "STOP REPLICA;"
 ### Bước 2: Đợi mysql-replica sync hết dữ liệu
 
 ```bash
-# Kiểm tra mysql-replica có còn transaction nào đang chờ không
 docker exec -it mysql-replica mysql -uroot -proot_password -e "SHOW PROCESSLIST;"
 ```
 
@@ -184,30 +181,18 @@ docker exec -it mysql-replica mysql -uroot -proot_password -e "SHOW REPLICA STAT
 ### Bước 6: Update cả 2 ProxySQL về cấu hình ban đầu
 
 ```bash
-# Update ProxySQL Main
 docker exec -it proxysql mysql -uradmin -pradmin -h127.0.0.1 -P6032 -e "
--- Xóa cấu hình hiện tại
 DELETE FROM mysql_servers;
-
--- Thêm lại cấu hình ban đầu: Primary vào HG 10, Replica vào HG 20
 INSERT INTO mysql_servers (hostgroup_id, hostname, port) VALUES (10, 'mysql-primary', 3306);
 INSERT INTO mysql_servers (hostgroup_id, hostname, port) VALUES (20, 'mysql-replica', 3306);
-
--- Load và Save
 LOAD MYSQL SERVERS TO RUNTIME;
 SAVE MYSQL SERVERS TO DISK;
 "
 
-# Update ProxySQL Backup
 docker exec -it proxysql-backup mysql -uradmin -pradmin -h127.0.0.1 -P6032 -e "
--- Xóa cấu hình hiện tại
 DELETE FROM mysql_servers;
-
--- Thêm lại cấu hình ban đầu: Primary vào HG 10, Replica vào HG 20
 INSERT INTO mysql_servers (hostgroup_id, hostname, port) VALUES (10, 'mysql-primary', 3306);
 INSERT INTO mysql_servers (hostgroup_id, hostname, port) VALUES (20, 'mysql-replica', 3306);
-
--- Load và Save
 LOAD MYSQL SERVERS TO RUNTIME;
 SAVE MYSQL SERVERS TO DISK;
 "
@@ -216,10 +201,8 @@ SAVE MYSQL SERVERS TO DISK;
 ### Bước 7: Kiểm tra cả 2 ProxySQL
 
 ```bash
-# Kiểm tra ProxySQL Main
 docker exec -it proxysql mysql -uradmin -pradmin -h127.0.0.1 -P6032 -e "SELECT hostgroup_id, hostname, status FROM runtime_mysql_servers;"
 
-# Kiểm tra ProxySQL Backup
 docker exec -it proxysql-backup mysql -uradmin -pradmin -h127.0.0.1 -P6032 -e "SELECT hostgroup_id, hostname, status FROM runtime_mysql_servers;"
 ```
 
@@ -230,7 +213,6 @@ docker exec -it proxysql-backup mysql -uradmin -pradmin -h127.0.0.1 -P6032 -e "S
 **Nếu thấy mysql-primary xuất hiện ở cả hostgroup 20 với status OFFLINE_HARD**, cleanup trên cả 2:
 
 ```bash
-# Cleanup ProxySQL Main
 docker exec -it proxysql mysql -uradmin -pradmin -h127.0.0.1 -P6032 -e "
 DELETE FROM mysql_servers WHERE hostname='mysql-primary' AND hostgroup_id=20;
 LOAD MYSQL SERVERS TO RUNTIME;
@@ -238,7 +220,6 @@ SAVE MYSQL SERVERS TO DISK;
 SELECT hostgroup_id, hostname, status FROM runtime_mysql_servers;
 "
 
-# Cleanup ProxySQL Backup
 docker exec -it proxysql-backup mysql -uradmin -pradmin -h127.0.0.1 -P6032 -e "
 DELETE FROM mysql_servers WHERE hostname='mysql-primary' AND hostgroup_id=20;
 LOAD MYSQL SERVERS TO RUNTIME;
@@ -260,21 +241,18 @@ SELECT hostgroup_id, hostname, status FROM runtime_mysql_servers;
 ### Bước 8: Test kết nối
 
 ```bash
-# Test câu SELECT (sẽ vào mysql-replica - HG 20 theo query rules)
 mysql -h 127.0.0.1 -P 3306 -uroot -proot_password -e "SELECT @@hostname;"
 ```
 
 **Kết quả:** `mysql-replica` ✅ (Đúng! Vì câu SELECT được route vào Reader)
 
 ```bash
-# Test câu SELECT FOR UPDATE (sẽ vào mysql-primary - HG 10)
 mysql -h 127.0.0.1 -P 3306 -uroot -proot_password -e "SELECT @@hostname FOR UPDATE;"
 ```
 
 **Kết quả:** `mysql-primary` ✅ (Đúng! Vì SELECT FOR UPDATE được route vào Writer)
 
 ```bash
-# Test câu INSERT (cũng vào mysql-primary - HG 10)
 mysql -h 127.0.0.1 -P 3306 -uroot -proot_password n8n_db -e "
 CREATE TABLE IF NOT EXISTS test_table (id INT, name VARCHAR(50));
 INSERT INTO test_table VALUES (1, 'test');
@@ -313,7 +291,6 @@ Truy cập http://localhost:3000 và xác nhận:
 ### Xóa mysql-replica khỏi hostgroup 20 (Reader) trên cả 2 ProxySQL
 
 ```bash
-# Xóa trên ProxySQL Main
 docker exec -it proxysql mysql -uradmin -pradmin -h127.0.0.1 -P6032 -e "
 DELETE FROM mysql_servers WHERE hostname='mysql-replica' AND hostgroup_id=20;
 LOAD MYSQL SERVERS TO RUNTIME;
@@ -321,7 +298,6 @@ SAVE MYSQL SERVERS TO DISK;
 SELECT hostgroup_id, hostname, status FROM runtime_mysql_servers;
 "
 
-# Xóa trên ProxySQL Backup
 docker exec -it proxysql-backup mysql -uradmin -pradmin -h127.0.0.1 -P6032 -e "
 DELETE FROM mysql_servers WHERE hostname='mysql-replica' AND hostgroup_id=20;
 LOAD MYSQL SERVERS TO RUNTIME;
@@ -350,7 +326,6 @@ mysql -h 127.0.0.1 -P 3306 -uroot -proot_password -e "SELECT @@hostname;"
 ### Khôi phục lại mysql-replica vào hostgroup 20 trên cả 2 ProxySQL
 
 ```bash
-# Khôi phục trên ProxySQL Main
 docker exec -it proxysql mysql -uradmin -pradmin -h127.0.0.1 -P6032 -e "
 INSERT INTO mysql_servers (hostgroup_id, hostname, port) VALUES (20, 'mysql-replica', 3306);
 LOAD MYSQL SERVERS TO RUNTIME;
@@ -358,7 +333,6 @@ SAVE MYSQL SERVERS TO DISK;
 SELECT hostgroup_id, hostname, status FROM runtime_mysql_servers;
 "
 
-# Khôi phục trên ProxySQL Backup
 docker exec -it proxysql-backup mysql -uradmin -pradmin -h127.0.0.1 -P6032 -e "
 INSERT INTO mysql_servers (hostgroup_id, hostname, port) VALUES (20, 'mysql-replica', 3306);
 LOAD MYSQL SERVERS TO RUNTIME;
