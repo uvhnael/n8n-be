@@ -27,6 +27,7 @@ public class GeneratedContent {
 
     private String aiModel;
     private String generationPrompt;
+    private String imagePrompt;
     private String status;
     private Long approvedBy;
     private LocalDateTime approvedAt;

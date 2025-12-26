@@ -105,7 +105,7 @@ public class ContentGeneratorService {
         
         // Role: Expert Copywriter with 10 years experience
         prompt.append("Bạn là Expert Copywriter với 10 năm kinh nghiệm chuyên viết content marketing ")
-              .append("chuyển đổi cao, đặc biệt là Facebook Ads cho thị trường Việt Nam.\n\n");
+              .append("chuyển đổi cao, đặc biệt là Facebook Ads cho Thẩm mỹ VT trên thị trường Việt Nam.\n\n");
         
         // Task description
         prompt.append("=== NHIỆM VỤ ===\n");
@@ -183,7 +183,8 @@ public class ContentGeneratorService {
         prompt.append("  \"title\": \"Tiêu đề hấp dẫn (10-70 ký tự)\",\n");
         prompt.append("  \"content\": \"Nội dung chi tiết, sử dụng trending keywords\",\n");
         prompt.append("  \"hashtags\": \"#hashtag1 #hashtag2 #hashtag3...\",\n");
-        prompt.append("  \"cta\": \"Call-to-action mạnh mẽ\"\n");
+        prompt.append("  \"cta\": \"Call-to-action mạnh mẽ\",\n");
+        prompt.append("  \"image_prompt\": \"Prompt để tạo ảnh liên quan đến nội dung này\"\n");
         prompt.append("}\n\n");
         prompt.append("Bắt đầu ngay bằng ký tự { và kết thúc bằng }. Không thêm bất kỳ text nào khác!\n");
         
@@ -203,6 +204,7 @@ public class ContentGeneratorService {
             String content = json.has("content") ? json.get("content").asText() : generatedText;
             String hashtags = json.has("hashtags") ? json.get("hashtags").asText() : "";
             String cta = json.has("cta") ? json.get("cta").asText() : "";
+            String imagePrompt = json.has("image_prompt") ? json.get("image_prompt").asText() : "";
             
             // Combine content with hashtags and CTA
             StringBuilder finalContent = new StringBuilder(content);
@@ -226,6 +228,7 @@ public class ContentGeneratorService {
                 .basedOnKeywords(Util.convertListToJson(request.getKeywords()))
                 .aiModel(model)
                 .generationPrompt(prompt)
+                .imagePrompt(imagePrompt)
                 .status(ContentStatus.DRAFT.name())
                 .build();
                 
@@ -242,6 +245,7 @@ public class ContentGeneratorService {
                 .basedOnKeywords(Util.convertListToJson(request.getKeywords()))
                 .aiModel(model)
                 .generationPrompt(prompt)
+                .imagePrompt("")
                 .status(ContentStatus.DRAFT.name())
                 .build();
         }

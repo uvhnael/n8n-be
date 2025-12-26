@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS generated_content (
 
     ai_model VARCHAR(50),
     generation_prompt TEXT,
+    image_prompt TEXT,
 
     status VARCHAR(20) DEFAULT 'DRAFT',
     approved_by BIGINT,
