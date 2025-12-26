@@ -9,8 +9,8 @@ import org.uvhnael.fbadsbe2.model.dto.ScheduledPostDTO;
 import org.uvhnael.fbadsbe2.model.entity.GeneratedContent;
 import org.uvhnael.fbadsbe2.repository.GeneratedContentRepository;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -38,8 +38,11 @@ public class PostPublisherService {
         }
         
         // Validate scheduled time is in the future
-        if (dto.getScheduledTime().isBefore(java.time.LocalDateTime.now())) {
-            throw new RuntimeException("Scheduled time must be in the future");
+        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+        ZonedDateTime scheduledZoned = dto.getScheduledTime().atZone(ZoneId.of("Asia/Ho_Chi_Minh"));
+        
+        if (scheduledZoned.isBefore(now)) {
+            throw new RuntimeException("Scheduled time must be in the future. Current time: " + now + ", scheduled: " + scheduledZoned);
         }
         
         // Check if webhook URL is configured
