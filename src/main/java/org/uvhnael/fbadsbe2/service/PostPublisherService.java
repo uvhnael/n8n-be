@@ -59,7 +59,7 @@ public class PostPublisherService {
         payload.put("mediaUrls", dto.getMediaUrls());
         payload.put("hashtags", dto.getHashtags());
         payload.put("callToAction", dto.getCallToAction());
-        payload.put("content", content.getContent());
+        payload.put("content", content);
         payload.put("title", content.getTitle());
         payload.put("imagePrompt", content.getImagePrompt());
         
