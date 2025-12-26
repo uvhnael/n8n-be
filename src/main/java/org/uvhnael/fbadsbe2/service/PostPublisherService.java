@@ -4,11 +4,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
+import org.uvhnael.fbadsbe2.model.dto.ScheduledPostDTO;
 import org.uvhnael.fbadsbe2.model.entity.GeneratedContent;
-import org.uvhnael.fbadsbe2.model.entity.ScheduledPost;
-import org.uvhnael.fbadsbe2.model.enums.PostStatus;
 import org.uvhnael.fbadsbe2.repository.GeneratedContentRepository;
 
 import java.util.HashMap;
@@ -19,138 +17,62 @@ import java.util.Map;
 @Slf4j
 public class PostPublisherService {
     
-    private final ScheduledPostService scheduledPostService;
     private final GeneratedContentRepository contentRepository;
     private final RestTemplate restTemplate = new RestTemplate();
     
-    @Value("${facebook.api.access-token:}")
-    private String facebookAccessToken;
-    
-    @Value("${facebook.api.base-url:https://graph.facebook.com/v18.0}")
-    private String facebookApiBaseUrl;
+    @Value("${n8n.webhook.url:}")
+    private String n8nWebhookUrl;
 
     /**
-     * Publish post to the specified platform
+     * Schedule a post by triggering n8n webhook (replaces database scheduling)
      */
-    @Transactional
-    public void publish(ScheduledPost post) {
-        log.info("Publishing post ID: {} to platform: {}", post.getId(), post.getPlatform());
+    public void schedulePostViaN8n(ScheduledPostDTO dto) {
+        log.info("Scheduling post via n8n webhook for content ID: {}", dto.getContentId());
+        
+        // Validate content exists and is approved
+        GeneratedContent content = contentRepository.findById(dto.getContentId())
+            .orElseThrow(() -> new RuntimeException("Content not found with ID: " + dto.getContentId()));
+        
+        if (!"APPROVED".equals(content.getStatus())) {
+            throw new RuntimeException("Content must be approved before scheduling. Current status: " + content.getStatus());
+        }
+        
+        // Validate scheduled time is in the future
+        if (dto.getScheduledTime().isBefore(java.time.LocalDateTime.now())) {
+            throw new RuntimeException("Scheduled time must be in the future");
+        }
+        
+        // Check if webhook URL is configured
+        if (n8nWebhookUrl == null || n8nWebhookUrl.isEmpty()) {
+            log.warn("n8n webhook URL not configured. Cannot schedule post.");
+            throw new RuntimeException("n8n webhook URL not configured");
+        }
+        
+        // Build webhook payload for scheduling
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("action", "schedule");
+        payload.put("contentId", dto.getContentId());
+        payload.put("platform", dto.getPlatform());
+        payload.put("platformPageId", dto.getPlatformPageId());
+        payload.put("scheduledTime", dto.getScheduledTime());
+        payload.put("postType", dto.getPostType());
+        payload.put("mediaUrls", dto.getMediaUrls());
+        payload.put("hashtags", dto.getHashtags());
+        payload.put("callToAction", dto.getCallToAction());
+        payload.put("content", content.getContent());
+        payload.put("title", content.getTitle());
+        payload.put("imagePrompt", content.getImagePrompt());
         
         try {
-            // Update status to PUBLISHING
-            scheduledPostService.updatePostStatus(post.getId(), PostStatus.PUBLISHING, null, null);
-            
-            // Publish based on platform
-            String postId = switch (post.getPlatform().toUpperCase()) {
-                case "FACEBOOK" -> publishToFacebook(post);
-                case "INSTAGRAM" -> publishToInstagram(post);
-                default -> throw new UnsupportedOperationException(
-                    "Platform not supported: " + post.getPlatform()
-                );
-            };
-            
-            // Update success
-            scheduledPostService.updatePostStatus(post.getId(), PostStatus.PUBLISHED, postId, null);
-            
-            log.info("Successfully published post {} to {}. Platform post ID: {}", 
-                post.getId(), post.getPlatform(), postId);
-                
-        } catch (Exception e) {
-            log.error("Failed to publish post {}: {}", post.getId(), e.getMessage(), e);
-            
-            // Update failure
-            scheduledPostService.updatePostStatus(
-                post.getId(), 
-                PostStatus.FAILED, 
-                null, 
-                e.getMessage()
-            );
-            
-            // Retry logic if needed
-            if (post.getRetryCount() < 3) {
-                log.info("Will retry publishing post {} (attempt {} of 3)", 
-                    post.getId(), post.getRetryCount() + 1);
-                // TODO: Schedule retry after delay
-            } else {
-                log.error("Max retry attempts reached for post {}", post.getId());
-            }
-            
-            throw e;
-        }
-    }
-
-    /**
-     * Publish to Facebook using Graph API
-     */
-    private String publishToFacebook(ScheduledPost post) {
-        log.info("Publishing to Facebook page: {}", post.getPlatformPageId());
-        
-        // Get content
-        GeneratedContent content = contentRepository.findById(post.getContentId())
-            .orElseThrow(() -> new RuntimeException("Content not found"));
-        
-        // Check if access token is configured
-        if (facebookAccessToken == null || facebookAccessToken.isEmpty()) {
-            log.warn("Facebook access token not configured. Simulating successful publish.");
-            return "SIMULATED_POST_ID_" + System.currentTimeMillis();
-        }
-        
-        // Build request
-        String url = String.format("%s/%s/feed", facebookApiBaseUrl, post.getPlatformPageId());
-        
-        Map<String, Object> request = new HashMap<>();
-        request.put("message", content.getContent());
-        request.put("access_token", facebookAccessToken);
-        
-        // Add media if present
-        if (post.getMediaUrls() != null && !post.getMediaUrls().isEmpty()) {
-            // TODO: Handle media upload
-            // For now, just add as link
-            log.info("Post has media URLs, but media upload not yet implemented");
-        }
-        
-        try {
-            // Make API call
+            // Make webhook call
             @SuppressWarnings("unchecked")
-            Map<String, Object> response = restTemplate.postForObject(url, request, Map.class);
+            Map<String, Object> response = restTemplate.postForObject(n8nWebhookUrl, payload, Map.class);
             
-            if (response != null && response.containsKey("id")) {
-                return response.get("id").toString();
-            } else {
-                throw new RuntimeException("Failed to get post ID from Facebook response");
-            }
+            log.info("Successfully triggered n8n webhook for scheduling post at {}", dto.getScheduledTime());
+            
         } catch (Exception e) {
-            log.error("Facebook API error: {}", e.getMessage());
-            throw new RuntimeException("Failed to publish to Facebook: " + e.getMessage(), e);
+            log.error("Failed to trigger n8n webhook for scheduling: {}", e.getMessage());
+            throw new RuntimeException("Failed to schedule post via n8n: " + e.getMessage(), e);
         }
-    }
-
-    /**
-     * Publish to Instagram (placeholder for future implementation)
-     */
-    private String publishToInstagram(ScheduledPost post) {
-        log.info("Publishing to Instagram (not yet implemented)");
-        
-        // TODO: Implement Instagram Publishing API
-        // For now, simulate success
-        log.warn("Instagram publishing not yet implemented. Simulating successful publish.");
-        return "INSTAGRAM_SIMULATED_POST_ID_" + System.currentTimeMillis();
-    }
-
-    /**
-     * Manually publish a post immediately (bypass schedule)
-     */
-    @Transactional
-    public void publishNow(Long scheduledPostId) {
-        log.info("Manual publish triggered for post ID: {}", scheduledPostId);
-        
-        ScheduledPost post = scheduledPostService.getScheduledPostById(scheduledPostId);
-        
-        // Validate post is in a publishable state
-        if (!PostStatus.PENDING.name().equals(post.getStatus())) {
-            throw new IllegalStateException("Cannot publish post with status: " + post.getStatus());
-        }
-        
-        publish(post);
     }
 }
