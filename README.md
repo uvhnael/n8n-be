@@ -16,7 +16,7 @@
 - 🔐 **Secure API** - JWT authentication with role-based access
 - 📚 **API Documentation** - Interactive Swagger UI
 
-## Tech Stack1
+## Tech Stack
 
 | Category | Technology |
 |----------|-----------|
